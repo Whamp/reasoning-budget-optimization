@@ -24,6 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--endpoint", default="http://localhost:30001/v1/chat/completions")
     run.add_argument("--api-key", default="EMPTY")
     run.add_argument("--start-serving", action="store_true", help="Start/recreate rbo-vllm from the bundle's rendered compose first.")
+    run.add_argument("--tokenizer", help="Optional Hugging Face tokenizer name/path for reasoning-token budget-hit detection.")
 
     summary = sub.add_parser("summarize", help="Summarize run bundles from a runs root.")
     summary.add_argument("--runs-root", type=Path, default=Path("runs"))
@@ -40,7 +41,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "run-bundle":
-        summary = run_bundle(args.bundle, endpoint=args.endpoint, api_key=args.api_key, start_serving=args.start_serving)
+        tokenizer = _load_tokenizer(args.tokenizer) if args.tokenizer else None
+        summary = run_bundle(args.bundle, endpoint=args.endpoint, api_key=args.api_key, start_serving=args.start_serving, tokenizer=tokenizer)
         print(summary)
         return 0
 
@@ -55,6 +57,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     return 1
+
+
+def _load_tokenizer(name: str):
+    try:
+        from transformers import AutoTokenizer
+    except ImportError as exc:
+        raise SystemExit("Install tokenizer support with: uv run --extra tokenizer ...") from exc
+    return AutoTokenizer.from_pretrained(name, trust_remote_code=True)
 
 
 def _parse_seeds(value: str) -> list[int]:

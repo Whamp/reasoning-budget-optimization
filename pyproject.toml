@@ -12,6 +12,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+tokenizer = ["transformers>=4.51"]
 
 [project.scripts]
 rbo = "rbo.cli:main"

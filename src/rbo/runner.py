@@ -16,6 +16,7 @@ def run_bundle(
     api_key: str = "EMPTY",
     post_json: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     start_serving: bool = False,
+    tokenizer: Any | None = None,
 ) -> dict[str, Any]:
     if start_serving:
         from .server_control import start_bundle_serving, wait_ready
@@ -46,7 +47,7 @@ def run_bundle(
             response = api.response
             raw_row = {"run_id": manifest["run_id"], "item_id": item["item_id"], "seed": seed, "response": response}
             _append_jsonl(raw_path, raw_row)
-            row = _attempt_from_response(manifest, item, seed, response, api.started_at, api.ended_at)
+            row = _attempt_from_response(manifest, item, seed, response, api.started_at, api.ended_at, tokenizer=tokenizer)
             _append_jsonl(attempts_path, row)
             rows.append(row)
 
@@ -88,6 +89,8 @@ def _attempt_from_response(
     response: dict[str, Any],
     started_at: float,
     ended_at: float,
+    *,
+    tokenizer: Any | None = None,
 ) -> dict[str, Any]:
     choice = (response.get("choices") or [{}])[0]
     message = choice.get("message") or {}
@@ -100,7 +103,19 @@ def _attempt_from_response(
     if not seen and transition:
         seen = transition in reasoning or transition in content
     mode = str(manifest.get("mode"))
-    budget_hit = bool(seen and mode.startswith("budgeted:"))
+    reasoning_tokens = _count_tokens(tokenizer, reasoning) if tokenizer is not None else None
+    budget_value = _budget_value(mode)
+    hit_detection_method = "not_applicable"
+    budget_hit = False
+    if mode.startswith("budgeted:"):
+        if seen:
+            budget_hit = True
+            hit_detection_method = "reasoning_end_str_seen"
+        elif reasoning_tokens is not None and budget_value is not None and reasoning_tokens >= budget_value:
+            budget_hit = True
+            hit_detection_method = "tokenizer_estimate"
+        else:
+            hit_detection_method = "not_detected"
     usage = response.get("usage") or {}
     return {
         "run_id": manifest["run_id"],
@@ -114,12 +129,30 @@ def _attempt_from_response(
         "reasoning_end_str_seen": seen,
         "latency_ms": int((ended_at - started_at) * 1000),
         "finish_reason": choice.get("finish_reason"),
+        "hit_detection_method": hit_detection_method,
+        "reasoning_tokens": reasoning_tokens,
         "prompt_tokens": usage.get("prompt_tokens"),
         "completion_tokens": usage.get("completion_tokens"),
         "total_tokens": usage.get("total_tokens"),
         "raw_output": content,
         "raw_reasoning": reasoning,
     }
+
+
+def _budget_value(mode: str) -> int | None:
+    if not mode.startswith("budgeted:"):
+        return None
+    try:
+        return int(mode.split(":", 1)[1])
+    except ValueError:
+        return None
+
+
+def _count_tokens(tokenizer: Any, text: str) -> int:
+    try:
+        return len(tokenizer.encode(text, add_special_tokens=False))
+    except TypeError:
+        return len(tokenizer.encode(text))
 
 
 def _append_jsonl(path: Path, row: dict[str, Any]) -> None:

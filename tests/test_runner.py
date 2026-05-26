@@ -6,6 +6,11 @@ from pathlib import Path
 from rbo.baselines import default_baseline_specs
 from rbo.bundle import write_run_bundle
 from rbo.runner import run_bundle
+
+
+class WhitespaceTokenizer:
+    def encode(self, text: str, add_special_tokens: bool = False) -> list[str]:
+        return text.split()
 from rbo.scoring import parse_aime_answer, score_aime_answer
 
 
@@ -47,3 +52,20 @@ def test_run_bundle_writes_attempts_and_summary_with_fake_client(tmp_path: Path)
     assert {a["item_id"] for a in attempts} == {"1", "19"}
     assert all(a["reasoning_end_str_seen"] for a in attempts)
     assert json.loads((bundle / "reports" / "summary.json").read_text()) == summary
+
+
+def test_plain_close_budget_hit_can_use_tokenizer_estimate(tmp_path: Path) -> None:
+    spec = next(s for s in default_baseline_specs(timestamp="20260526-1700", seeds=[20260413]) if s.string_label == "plain-close" and s.role == "opt")
+    bundle = write_run_bundle(tmp_path, spec)
+
+    def fake_post(body: dict) -> dict:
+        return {
+            "choices": [{"finish_reason": "stop", "message": {"role": "assistant", "reasoning": "x " * 8192, "content": "\\boxed{0}"}}],
+            "usage": {},
+        }
+
+    summary = run_bundle(bundle, post_json=fake_post, start_serving=False, tokenizer=WhitespaceTokenizer())
+
+    attempts = [json.loads(line) for line in (bundle / "attempts.jsonl").read_text().splitlines()]
+    assert summary["budget_hits"] == 3
+    assert all(a["hit_detection_method"] == "tokenizer_estimate" for a in attempts)
