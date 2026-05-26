@@ -1,0 +1,41 @@
+# Local/tool-generated indexes
+.codegraph/
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+
+# SQLite runtime sidecars
+*.sqlite3-shm
+*.sqlite3-wal
+*.db-shm
+*.db-wal
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# Obsidian volatile workspace/cache files
+.obsidian/workspace*.json
+.obsidian/cache/
+.trash/
