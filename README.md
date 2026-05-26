@@ -78,7 +78,22 @@ PYTHONPATH=src python -m rbo.cli init-baselines \
 
 This creates eight grepable Run Bundles under `runs/` and appends entries to `runs/index.jsonl`.
 
-Run one bundle, starting/recreating `rbo-vllm` from its rendered compose first. Use tokenizer support so plain-close runs can detect budget hits even when vLLM strips `</think>` from the parsed reasoning field:
+Preview pending baselines:
+
+```bash
+uv run rbo run-baselines --runs-root runs --dry-run
+```
+
+Run all pending baselines. This starts/recreates `rbo-vllm` from each bundle's rendered compose, uses request concurrency 8 inside each bundle, skips completed bundles by default, and prints a summary after each bundle:
+
+```bash
+uv run --extra tokenizer rbo run-baselines \
+  --runs-root runs \
+  --tokenizer Jackrong/Qwopus3.6-27B-v2 \
+  --concurrency 8
+```
+
+Run one bundle manually if needed:
 
 ```bash
 uv run --extra tokenizer rbo run-bundle \

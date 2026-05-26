@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+from .baseline_runner import plan_baseline_suite, run_baseline_suite
 from .baselines import default_baseline_specs
 from .bundle import write_run_bundle
 from .runner import run_bundle
@@ -27,6 +28,14 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--tokenizer", help="Optional Hugging Face tokenizer name/path for reasoning-token budget-hit detection.")
     run.add_argument("--concurrency", type=int, default=8, help="Concurrent requests within a Run Bundle; default 8.")
 
+    suite = sub.add_parser("run-baselines", help="Run all pending baseline Run Bundles from the ledger.")
+    suite.add_argument("--runs-root", type=Path, default=Path("runs"))
+    suite.add_argument("--tokenizer", default="Jackrong/Qwopus3.6-27B-v2", help="Hugging Face tokenizer name/path for budget-hit detection.")
+    suite.add_argument("--concurrency", type=int, default=8, help="Concurrent requests within each Run Bundle; default 8.")
+    suite.add_argument("--no-start-serving", action="store_true", help="Do not start/recreate rbo-vllm before each bundle.")
+    suite.add_argument("--rerun", action="store_true", help="Run completed bundles again instead of skipping them.")
+    suite.add_argument("--dry-run", action="store_true", help="List pending bundles without starting serving or sending requests.")
+
     summary = sub.add_parser("summarize", help="Summarize run bundles from a runs root.")
     summary.add_argument("--runs-root", type=Path, default=Path("runs"))
     summary.add_argument("--json", action="store_true")
@@ -45,6 +54,25 @@ def main(argv: list[str] | None = None) -> int:
         tokenizer = _load_tokenizer(args.tokenizer) if args.tokenizer else None
         summary = run_bundle(args.bundle, endpoint=args.endpoint, api_key=args.api_key, start_serving=args.start_serving, tokenizer=tokenizer, concurrency=args.concurrency)
         print(summary)
+        return 0
+
+    if args.command == "run-baselines":
+        if args.dry_run:
+            planned = plan_baseline_suite(args.runs_root, rerun=args.rerun)
+            if not planned:
+                print("No pending baseline bundles. Use --rerun to include completed bundles.")
+            else:
+                for run_id in planned:
+                    print(run_id)
+            return 0
+        tokenizer = _load_tokenizer(args.tokenizer) if args.tokenizer else None
+        run_baseline_suite(
+            args.runs_root,
+            tokenizer=tokenizer,
+            concurrency=args.concurrency,
+            start_serving=not args.no_start_serving,
+            rerun=args.rerun,
+        )
         return 0
 
     if args.command == "summarize":
