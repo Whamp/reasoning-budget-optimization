@@ -31,7 +31,12 @@ def test_default_baselines_cover_required_modes_and_roles() -> None:
     assert unlimited.serving.reasoning_parser is None
     assert unlimited.serving.reasoning_config is None
     assert unlimited.serving.gpu_memory_utilization == 0.9
-    assert unlimited.serving.max_model_len == "65536"
+    assert unlimited.serving.max_model_len == "262144"
+    assert unlimited.request.max_tokens == 81920
+
+    budgeted = next(s for s in specs if s.mode == "budgeted:8192" and s.role == "opt")
+    assert budgeted.serving.max_model_len == "65536"
+    assert budgeted.request.max_tokens == 49152
 
     disabled = next(s for s in specs if s.mode == "disabled" and s.role == "opt")
     assert disabled.serving.reasoning_config is not None
@@ -57,6 +62,7 @@ def test_write_run_bundle_persists_manifest_rendered_config_and_ledger(tmp_path:
 
     request_config = json.loads((bundle_dir / "rendered" / "request_config.json").read_text())
     assert request_config["thinking_token_budget"] == 8192
+    assert request_config["max_tokens"] == 49152
     assert request_config["temperature"] == 0.95
 
     ledger_lines = (tmp_path / "index.jsonl").read_text().strip().splitlines()
