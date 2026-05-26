@@ -1,147 +1,136 @@
 # Reasoning budget optimization
 
-Workspace for optimizing the Qwen/Qwopus `reasoning_end_str` transition phrase used when vLLM enforces a `thinking_token_budget`.
+Portable harness for evaluating vLLM/Qwen reasoning-budget transition text. The long-term goal is to find **Transition Text** that improves answer quality when vLLM enforces a reasoning cutoff, without accepting pathological reasoning latency.
 
-## Goal
+## Current focus: baseline harness
 
-Long-term goal: enforce shorter reasoning budgets while preserving task accuracy. We want a better transition phrase for the moment vLLM cuts off reasoning and injects a forced reasoning end, so the model uses its partial work to produce the best possible final answer instead of collapsing, rambling, or guessing poorly.
+The repo currently focuses on reproducible baseline runs, not candidate generation. v0 proves that we can clone the repo to `server60`, start an isolated `rbo-vllm` container, run fixed AIME25 baseline bundles, and record self-contained run artifacts.
 
-Current optimization target: AIME25 items that frequently hit the reasoning budget but are still solvable at least sometimes. Items that rarely hit the budget waste compute for this project because the optimized string is never injected. Items that always hit the budget and are never correct may also be poor first-pass targets because they may measure model incapability rather than string quality.
+GEPA/candidate search comes after this baseline path is proven.
 
-This workspace should support comparing multiple `reasoning_end_str` candidates across:
+## Domain language
 
-- reasoning budgets, starting with `thinking_token_budget=8192`;
-- selected high-budget-hit AIME25 items;
-- hit-conditioned accuracy, not just overall accuracy;
-- token/latency costs;
-- guardrails that catch regressions on budget-hit items the model already solves.
+See [`CONTEXT.md`](./CONTEXT.md) for the shared glossary. Key terms:
 
-The existing 32768-budget data is imported as design evidence and historical baseline context. Candidate strings at 8192 require fresh baselines at that same budget.
+- **Transition Text**: phrase before `</think>`; this is what GEPA will eventually optimize.
+- **Reasoning End String**: full forced string vLLM emits on budget exhaustion, including `</think>`.
+- **Run Bundle**: reproducible artifact directory for one evaluated condition.
+- **JSONL Ledger**: append-only `runs/index.jsonl` pointing to Run Bundles.
+- **Reasoning Budget Mode**: `budgeted:<int>`, `disabled`, or `unlimited`.
 
-Current production string:
+## Server60 location
 
-```text
-My reasoning budget is exhausted, but I have enough information to answer directly now.</think>
+Recommended clone location on `server60`:
+
+```bash
+/home/will/inference/experiments/reasoning-budget-optimization
 ```
 
-Transition phrase under optimization:
+The harness owns its own experiment serving compose and uses:
+
+- container name: `rbo-vllm`
+- host API port: `30001`
+- OpenAI-compatible endpoint: `http://localhost:30001/v1/chat/completions`
+
+It fails fast if the everyday `vllm` container is running. Stop that service manually when you are ready to dedicate the GPUs to experiments.
+
+## First baselines
+
+Required first baseline matrix:
+
+1. `prod-long` + `budgeted:8192`
+2. `plain-close` + `budgeted:8192`
+3. `server-prod-long` + `disabled`
+4. `no-reasoning-config` + `unlimited`
+
+Each baseline is split into separate Run Bundles for:
+
+- optimization set: AIME25 items `12,24,27`
+- guardrail set: AIME25 items `1,19`
+
+Default seeds:
 
 ```text
-My reasoning budget is exhausted, but I have enough information to answer directly now.
+20260413,20260414,20260415,20260416,20260417
 ```
 
-## Current database
+## Usage
 
-SQLite DB:
+From a checkout:
+
+```bash
+python -m pytest -q
+
+PYTHONPATH=src python -m rbo.cli init-baselines \
+  --runs-root runs \
+  --seeds 20260413,20260414,20260415,20260416,20260417
+```
+
+This creates eight grepable Run Bundles under `runs/` and appends entries to `runs/index.jsonl`.
+
+Run one bundle, starting/recreating `rbo-vllm` from its rendered compose first:
+
+```bash
+PYTHONPATH=src python -m rbo.cli run-bundle \
+  runs/<run-id> \
+  --start-serving
+```
+
+Summarize all bundles:
+
+```bash
+PYTHONPATH=src python -m rbo.cli summarize --runs-root runs
+```
+
+## Run Bundle shape
+
+```text
+runs/<run-id>/
+  manifest.json
+  attempts.jsonl
+  rendered/
+    compose.yaml
+    compose.env.redacted
+    generation_config.json
+    reasoning_config.json
+    request_config.json
+  raw/
+    responses.jsonl
+    models.json
+    docker-compose-up.log
+  reports/
+    summary.json
+    summary.md
+  traces/
+```
+
+SQLite is intentionally not part of the v0 storage model. The existing historical SQLite file remains as imported design evidence only.
+
+## Historical evidence
+
+Existing imported 32768-budget evidence lives at:
 
 ```text
 results/budget-optimization.sqlite3
 ```
 
-Imported baseline evidence:
+It contains historical AIME25 runs for `Jackrong/Qwopus3.6-27B-v2` using the production long reasoning end string at `thinking_token_budget=32768`. Do not compare new 8192-budget candidates directly against this historical baseline except as coarse context.
 
-- model: `Jackrong/Qwopus3.6-27B-v2`
-- benchmark: `aime25`
-- seeds: `20260413` through `20260421`
-- budget: `thinking_token_budget=32768`, `max_tokens=81920`
-- reasoning end string: current production string above
-- completed attempts: `270`
-- aggregate: `222/270 = 82.22%`
-
-Quick queries:
+Quick historical query:
 
 ```bash
 sqlite3 results/budget-optimization.sqlite3 \
   'select * from string_eval_summary;'
-
-sqlite3 results/budget-optimization.sqlite3 \
-  "select item_id, attempts, budget_hits, correct, wrong, hit_correct, hit_wrong from budget_hit_item_summary order by cast(item_id as int);"
 ```
 
-## Selected subsets
+## Candidate constraints for later GEPA work
 
-Primary optimization items:
-
-```text
-12, 24, 27
-```
-
-Guardrail items:
-
-```text
-1, 19
-```
-
-See `notes/subsample-selection.md` for rationale and timing estimates.
-
-## Baselines needed at 8192
-
-We are moving optimization to:
-
-```text
-thinking_token_budget=8192
-```
-
-Before judging candidate strings, create baselines at the same budget:
-
-1. current production phrase:
-   `My reasoning budget is exhausted, but I have enough information to answer directly now.</think>`
-2. plain end token only:
-   `</think>`
-3. reasoning disabled / no-reasoning baseline, if supported by the server/client stack.
-
-Do not compare 8192-budget candidates against the existing 32768-budget baseline except for coarse context.
-
-## Open implementation questions
-
-### 1. Can `reasoning_end_str` be changed per request?
-
-Current evidence from vLLM docs/code suggests `reasoning_end_str` is part of server/LLM `reasoning_config`, while `thinking_token_budget` is a per-request sampling parameter. That likely means testing a new `reasoning_end_str` requires a vLLM server restart with a new `--reasoning-config`.
-
-Action: verify empirically before building orchestration. Try sending a request-level `reasoning_config` override and confirm whether vLLM accepts, rejects, or ignores it. If ignored/rejected, candidate evaluation needs server restart per string.
-
-### 2. How should candidates be scored?
-
-Score only after enough budget-hit attempts are observed per item. Proposed first pass:
-
-- optimization set: `12,24,27`
-- target: at least `3` budget hits per item for cheap screening, then `5` for stronger checks
-- primary metric: accuracy among budget-hit attempts
-- secondary metrics: overall accuracy, hit rate, reasoning/output/completion tokens, latency
-
-### 3. Constraints for candidate transition phrases
-
-Initial constraints for candidate generation:
+Initial constraints for generated Transition Text:
 
 - English only.
-- Must be a single sentence or sentence fragment.
-- Must not include the literal tokens `<think>` or `</think>`; the harness appends `</think>`.
-- Prefer short strings: target <= 120 characters; hard cap <= 200 characters.
-- Should tell the model to stop exploring and produce the best final answer from current work.
-- Should avoid mentioning hidden reasoning, benchmark names, item IDs, AIME, seeds, or the optimization subset.
-- Should not ask the model to restart solving from scratch.
-
-### 4. Context for candidate-generating model / GEPA
-
-Give the optimizer:
-
-- task: AIME-style math; final answer must be boxed integer.
-- mechanism: phrase is injected only when reasoning budget is exhausted, immediately before `</think>`.
-- goal: preserve useful partial reasoning and force concise final-answer synthesis.
-- constraints above.
-- aggregate metrics only, not item-specific solutions, to reduce overfitting.
-- optimization items are selected for high budget-hit frequency and mixed solvability, but candidate text must generalize to unseen math problems.
-
-Hold out guardrail items `1,19` to detect regressions in budget-exhausted solves that were already correct.
-
-## GEPA fit
-
-DSPy/GEPA looks appropriate as a candidate-string optimizer because the object being optimized is natural-language program text. Treat `reasoning_end_str` transition text as the prompt/program parameter and use the harness metric as feedback.
-
-Recommended shape:
-
-1. Generate candidate transition phrase.
-2. Restart/serve vLLM with candidate `reasoning_end_str` if per-request override is unavailable.
-3. Run optimization subset until hit quota is met.
-4. Return metric bundle to optimizer.
-5. Periodically evaluate guardrails.
+- Single sentence or sentence fragment.
+- Must not include `<think>` or `</think>`; the harness appends `</think>`.
+- Target <= 120 characters; hard cap <= 200 characters.
+- Tell the model to stop exploring and produce the best final answer from current work.
+- Avoid hidden-reasoning/meta/server language, benchmark names, item IDs, AIME, seeds, or subset details.
+- Do not ask the model to restart solving from scratch.

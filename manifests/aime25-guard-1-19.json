@@ -1,0 +1,25 @@
+{
+  "benchmark": "aime25",
+  "items": [
+    {
+      "benchmark": "aime25",
+      "item_id": "1",
+      "metadata": {
+        "index": 1
+      },
+      "prompt": "Please reason step by step, and put your final answer within \\boxed{}.\n\nQuestion: In $\\triangle ABC$ points $D$ and $E$ lie on $\\overline{AB}$ so that $AD < AE < AB$, while points $F$ and $G$ lie on $\\overline{AC}$ so that $AF < AG < AC$. Suppose $AD = 4$, $DE = 16$, $EB = 8$, $AF = 13$, $FG = 52$, and $GC = 26$. Let $M$ be the reflection of $D$ through $F$, and let $N$ be the reflection of $G$ through $E$. The area of quadrilateral $DEGF$ is $288$. Find the area of heptagon $AFNBCEM$.\nAnswer:",
+      "target": "588",
+      "task": "aime25"
+    },
+    {
+      "benchmark": "aime25",
+      "item_id": "19",
+      "metadata": {
+        "index": 19
+      },
+      "prompt": "Please reason step by step, and put your final answer within \\boxed{}.\n\nQuestion: Suppose $\\triangle ABC$ has angles $\\angle BAC = 84^\\circ, \\angle ABC=60^\\circ,$ and $\\angle ACB = 36^\\circ.$ Let $D, E,$ and $F$ be the midpoints of sides $\\overline{BC}, \\overline{AC},$ and $\\overline{AB},$ respectively. The circumcircle of $\triangle DEF$ intersects $\\overline{BD}, \\overline{AE},$ and $\\overline{AF}$ at points $G, H,$ and $J,$ respectively. The points $G, D, E, H, J,$ and $F$ divide the circumcircle of $\\triangle DEF$ into six minor arcs, as shown. Find $\\overarc{DE}+2\\cdot \\overarc{HJ} + 3\\cdot \\overarc{FG},$ where the arcs are measured in degrees.[asy] import olympiad; size(6cm); defaultpen(fontsize(10pt)); pair B = (0, 0), A = (Cos(60), Sin(60)), C = (Cos(60)+Sin(60)/Tan(36), 0), D = midpoint(B--C), E = midpoint(A--C), F = midpoint(A--B); guide circ = circumcircle(D, E, F); pair G = intersectionpoint(B--D, circ), J = intersectionpoints(A--F, circ)[0], H = intersectionpoints(A--E, circ)[0]; draw(B--A--C--cycle); draw(D--E--F--cycle); draw(circ);  dot(A);dot(B);dot(C);dot(D);dot(E);dot(F);dot(G);dot(H);dot(J); label(\"$A$\", A, (0, .8)); label(\"$B$\", B, (-.8, -.8)); label(\"$C$\", C, (.8, -.8)); label(\"$D$\", D, (0, -.8)); label(\"$E$\", E, (.8, .2)); label(\"$F$\", F, (-.8, .2)); label(\"$G$\", G, (0, .8)); label(\"$H$\", H, (-.2, -1));label(\"$J$\", J, (.2, -.8)); [/asy]\nAnswer:",
+      "target": "336",
+      "task": "aime25"
+    }
+  ]
+}

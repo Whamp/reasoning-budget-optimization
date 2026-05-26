@@ -24,8 +24,9 @@ venv/
 *.db-shm
 *.db-wal
 
-# Logs and temporary files
+# Logs, run bundles, and temporary files
 *.log
+runs/
 tmp/
 temp/
 
