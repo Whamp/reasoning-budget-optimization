@@ -22,11 +22,11 @@ def default_baseline_specs(*, timestamp: str, seeds: list[int] | tuple[int, ...]
     specs: list[RunSpec] = []
     for string_label, transition in (("prod-long", PROD_LONG_TRANSITION), ("plain-close", "")):
         serving = _cutoff_serving(label=string_label, transition_text=transition)
-        request = RequestConfig(mode="budgeted:8192", thinking_token_budget=8192, max_tokens=49152)
+        request = RequestConfig(mode="budgeted:8192", thinking_token_budget=8192, max_tokens=81920)
         specs.extend(_role_specs(timestamp, string_label, "b8192", seed_tuple, serving, request, transition))
 
-    disabled_serving = _cutoff_serving(label="server-prod-long", transition_text=PROD_LONG_TRANSITION)
-    disabled_request = RequestConfig(mode="disabled", max_tokens=49152, chat_template_kwargs={"enable_thinking": False})
+    disabled_serving = _cutoff_serving(label="server-prod-long", transition_text=PROD_LONG_TRANSITION, max_model_len="262144")
+    disabled_request = RequestConfig(mode="disabled", max_tokens=81920, chat_template_kwargs={"enable_thinking": False})
     specs.extend(_role_specs(timestamp, "server-prod-long", "disabled", seed_tuple, disabled_serving, disabled_request, PROD_LONG_TRANSITION))
 
     unlimited_serving = ServingConfig(
@@ -42,11 +42,12 @@ def default_baseline_specs(*, timestamp: str, seeds: list[int] | tuple[int, ...]
     return specs
 
 
-def _cutoff_serving(*, label: str, transition_text: str) -> ServingConfig:
+def _cutoff_serving(*, label: str, transition_text: str, max_model_len: str = "131072") -> ServingConfig:
     return ServingConfig(
         label=label,
         model_id=DEFAULT_MODEL_ID,
         served_model_name=DEFAULT_SERVED_MODEL_NAME,
+        max_model_len=max_model_len,
         reasoning_parser="qwen3",
         reasoning_config=ReasoningConfig(
             reasoning_start_str="<think>",

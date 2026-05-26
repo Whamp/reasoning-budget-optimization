@@ -39,10 +39,10 @@ Serving defaults for baseline throughput:
 - `--max-num-seqs=8`
 - request concurrency: `8`
 - `--gpu-memory-utilization=0.9`
-- budgeted/disabled serving cap: `--max-model-len=65536`, request `max_tokens=49152`
-- unlimited serving cap: `--max-model-len=262144`, request `max_tokens=81920`
+- budgeted serving cap: `--max-model-len=131072`, request `max_tokens=81920`
+- disabled/unlimited serving cap: `--max-model-len=262144`, request `max_tokens=81920`
 
-The `65536` budgeted/disabled cap is based on the existing 32768-budget evidence for selected items `1,12,19,24,27`: max observed total tokens was `49984` on item `27`, so `65536` keeps headroom while avoiding the full 262k/auto KV-cache footprint. The unlimited baseline keeps a high model-length cap because it is the high-ceiling no-cutoff reference condition.
+The existing 32768-budget evidence for selected items `1,12,19,24,27` had max observed total tokens `49984`, but Qwen's model card recommends maintaining at least 128K context to preserve thinking capabilities. The budgeted baseline therefore uses 128K rather than a tighter 65K cap. Disabled and unlimited baselines keep the full 262K context because disabled models can compensate by moving reasoning into visible output, and unlimited is the high-ceiling no-cutoff reference condition.
 
 ## First baselines
 

@@ -85,6 +85,7 @@ _Avoid_: validation set when referring to this held-out regression subset
 - A **Run Bundle** is the canonical reproducibility artifact for one evaluated condition: one serving configuration, one request decoding configuration, one reasoning budget mode, one item set, and one seed set. Budgeted and disabled Run Bundles also record the server-side **Reasoning End String**; unlimited Run Bundles record `no-reasoning-config` instead.
 - A **Run Bundle** may contain multiple attempts across the seed set; each attempt records its individual seed.
 - The **Request Config** is authoritative for eval decoding parameters; any mounted generation config is recorded but should stay minimal and stable.
+- Budgeted baseline serving uses at least 128K context to respect Qwen model-card guidance about preserving thinking capabilities; disabled and unlimited baselines use the full 262K context because they are high-ceiling reference conditions.
 - The **JSONL Ledger** indexes **Run Bundles** and is the v0 storage model; SQLite is deferred unless query needs justify it.
 - A **Run ID** should be human-readable and grepable; timestamps may prefix it, but an opaque UUID should not be the only identifier.
 - The first 8192 baseline uses the **Optimization Set** plus **Guardrail Set**, not all AIME25 items.

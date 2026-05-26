@@ -35,10 +35,12 @@ def test_default_baselines_cover_required_modes_and_roles() -> None:
     assert unlimited.request.max_tokens == 81920
 
     budgeted = next(s for s in specs if s.mode == "budgeted:8192" and s.role == "opt")
-    assert budgeted.serving.max_model_len == "65536"
-    assert budgeted.request.max_tokens == 49152
+    assert budgeted.serving.max_model_len == "131072"
+    assert budgeted.request.max_tokens == 81920
 
     disabled = next(s for s in specs if s.mode == "disabled" and s.role == "opt")
+    assert disabled.serving.max_model_len == "262144"
+    assert disabled.request.max_tokens == 81920
     assert disabled.serving.reasoning_config is not None
     assert disabled.request.chat_template_kwargs == {"enable_thinking": False}
 
@@ -58,11 +60,11 @@ def test_write_run_bundle_persists_manifest_rendered_config_and_ledger(tmp_path:
     assert '"30001:30000"' in compose
     assert "--reasoning-config" in compose
     assert "--gpu-memory-utilization=0.9" in compose
-    assert "--max-model-len=65536" in compose
+    assert "--max-model-len=131072" in compose
 
     request_config = json.loads((bundle_dir / "rendered" / "request_config.json").read_text())
     assert request_config["thinking_token_budget"] == 8192
-    assert request_config["max_tokens"] == 49152
+    assert request_config["max_tokens"] == 81920
     assert request_config["temperature"] == 0.95
 
     ledger_lines = (tmp_path / "index.jsonl").read_text().strip().splitlines()

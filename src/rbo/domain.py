@@ -42,7 +42,7 @@ class ServingConfig:
     image: str = "vllm/vllm-openai:nightly"
     tensor_parallel_size: int = 4
     max_num_seqs: int = 8
-    max_model_len: str = "65536"
+    max_model_len: str = "131072"
     max_num_batched_tokens: int = 8192
     gpu_memory_utilization: float = 0.9
     tool_call_parser: str = "qwen3_coder"
