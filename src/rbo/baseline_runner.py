@@ -36,6 +36,7 @@ def run_baseline_suite(
     concurrency: int = 8,
     start_serving: bool = True,
     rerun: bool = False,
+    progress_every: int = 1,
     runner: Runner = run_bundle,
 ) -> list[dict[str, Any]]:
     bundles = iter_bundle_paths(runs_root, rerun=rerun)
@@ -46,7 +47,7 @@ def run_baseline_suite(
     summaries: list[dict[str, Any]] = []
     for index, bundle in enumerate(bundles, start=1):
         print(f"=== [{index}/{len(bundles)}] running {bundle.name} ===", flush=True)
-        summary = runner(bundle, start_serving=start_serving, tokenizer=tokenizer, concurrency=concurrency)
+        summary = runner(bundle, start_serving=start_serving, tokenizer=tokenizer, concurrency=concurrency, progress_every=progress_every)
         summaries.append(summary)
         print(format_summary_table(summarize_runs(runs_root)), end="", flush=True)
     return summaries

@@ -27,11 +27,13 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--start-serving", action="store_true", help="Start/recreate rbo-vllm from the bundle's rendered compose first.")
     run.add_argument("--tokenizer", help="Optional Hugging Face tokenizer name/path for reasoning-token budget-hit detection.")
     run.add_argument("--concurrency", type=int, default=8, help="Concurrent requests within a Run Bundle; default 8.")
+    run.add_argument("--progress-every", type=int, default=1, help="Print progress after every N completed attempts; default 1, 0 disables.")
 
     suite = sub.add_parser("run-baselines", help="Run all pending baseline Run Bundles from the ledger.")
     suite.add_argument("--runs-root", type=Path, default=Path("runs"))
     suite.add_argument("--tokenizer", default="Jackrong/Qwopus3.6-27B-v2", help="Hugging Face tokenizer name/path for budget-hit detection.")
     suite.add_argument("--concurrency", type=int, default=8, help="Concurrent requests within each Run Bundle; default 8.")
+    suite.add_argument("--progress-every", type=int, default=1, help="Print progress after every N completed attempts; default 1, 0 disables.")
     suite.add_argument("--no-start-serving", action="store_true", help="Do not start/recreate rbo-vllm before each bundle.")
     suite.add_argument("--rerun", action="store_true", help="Run completed bundles again instead of skipping them.")
     suite.add_argument("--dry-run", action="store_true", help="List pending bundles without starting serving or sending requests.")
@@ -52,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "run-bundle":
         tokenizer = _load_tokenizer(args.tokenizer) if args.tokenizer else None
-        summary = run_bundle(args.bundle, endpoint=args.endpoint, api_key=args.api_key, start_serving=args.start_serving, tokenizer=tokenizer, concurrency=args.concurrency)
+        summary = run_bundle(args.bundle, endpoint=args.endpoint, api_key=args.api_key, start_serving=args.start_serving, tokenizer=tokenizer, concurrency=args.concurrency, progress_every=args.progress_every)
         print(summary)
         return 0
 
@@ -72,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
             concurrency=args.concurrency,
             start_serving=not args.no_start_serving,
             rerun=args.rerun,
+            progress_every=args.progress_every,
         )
         return 0
 

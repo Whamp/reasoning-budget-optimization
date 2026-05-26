@@ -37,7 +37,7 @@ def test_run_baseline_suite_runs_not_run_bundles_with_one_loaded_tokenizer(tmp_p
     tokenizer = object()
 
     def runner(bundle: Path, **kwargs):
-        calls.append((bundle.name, kwargs["concurrency"], kwargs["start_serving"], kwargs["tokenizer"]))
+        calls.append((bundle.name, kwargs["concurrency"], kwargs["start_serving"], kwargs["tokenizer"], kwargs["progress_every"]))
         summary = {"run_id": bundle.name, "attempts": 1, "correct": 1, "accuracy": 1.0, "budget_hits": 1, "hit_accuracy": 1.0}
         reports = bundle / "reports"
         reports.mkdir(exist_ok=True)
@@ -47,4 +47,4 @@ def test_run_baseline_suite_runs_not_run_bundles_with_one_loaded_tokenizer(tmp_p
     summaries = run_baseline_suite(tmp_path, tokenizer=tokenizer, concurrency=8, start_serving=True, runner=runner)
 
     assert len(summaries) == 2
-    assert [call[1:] for call in calls] == [(8, True, tokenizer), (8, True, tokenizer)]
+    assert [call[1:] for call in calls] == [(8, True, tokenizer, 1), (8, True, tokenizer, 1)]

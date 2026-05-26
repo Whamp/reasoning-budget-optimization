@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from .client import OpenAIChatClient
 from .manifest import load_items
+from .progress import ProgressReporter
 from .scoring import score_aime_answer
 
 
@@ -19,6 +20,7 @@ def run_bundle(
     start_serving: bool = False,
     tokenizer: Any | None = None,
     concurrency: int = 8,
+    progress_every: int = 1,
 ) -> dict[str, Any]:
     if start_serving:
         from .server_control import start_bundle_serving, wait_ready
@@ -39,6 +41,7 @@ def run_bundle(
     jobs = [(seed, item) for seed in manifest["seeds"] for item in items]
     rows: list[dict[str, Any]] = []
     worker_count = max(1, min(concurrency, len(jobs)))
+    reporter = ProgressReporter(run_id=manifest["run_id"], total=len(jobs), every=progress_every)
     with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as pool:
         futures = [pool.submit(_run_one, client, manifest, request_config, seed, item, tokenizer) for seed, item in jobs]
         for future in concurrent.futures.as_completed(futures):
@@ -46,6 +49,7 @@ def run_bundle(
             _append_jsonl(raw_path, raw_row)
             _append_jsonl(attempts_path, row)
             rows.append(row)
+            reporter.record(row)
 
     summary = summarize_attempts(manifest, rows)
     reports = bundle_dir / "reports"
