@@ -25,6 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--api-key", default="EMPTY")
     run.add_argument("--start-serving", action="store_true", help="Start/recreate rbo-vllm from the bundle's rendered compose first.")
     run.add_argument("--tokenizer", help="Optional Hugging Face tokenizer name/path for reasoning-token budget-hit detection.")
+    run.add_argument("--concurrency", type=int, default=8, help="Concurrent requests within a Run Bundle; default 8.")
 
     summary = sub.add_parser("summarize", help="Summarize run bundles from a runs root.")
     summary.add_argument("--runs-root", type=Path, default=Path("runs"))
@@ -42,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "run-bundle":
         tokenizer = _load_tokenizer(args.tokenizer) if args.tokenizer else None
-        summary = run_bundle(args.bundle, endpoint=args.endpoint, api_key=args.api_key, start_serving=args.start_serving, tokenizer=tokenizer)
+        summary = run_bundle(args.bundle, endpoint=args.endpoint, api_key=args.api_key, start_serving=args.start_serving, tokenizer=tokenizer, concurrency=args.concurrency)
         print(summary)
         return 0
 

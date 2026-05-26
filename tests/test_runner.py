@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from pathlib import Path
 
 from rbo.baselines import default_baseline_specs
@@ -69,3 +71,28 @@ def test_plain_close_budget_hit_can_use_tokenizer_estimate(tmp_path: Path) -> No
     attempts = [json.loads(line) for line in (bundle / "attempts.jsonl").read_text().splitlines()]
     assert summary["budget_hits"] == 3
     assert all(a["hit_detection_method"] == "tokenizer_estimate" for a in attempts)
+
+
+def test_run_bundle_uses_configurable_concurrency(tmp_path: Path) -> None:
+    spec = default_baseline_specs(timestamp="20260526-1700", seeds=[20260413])[0]  # 3 items
+    bundle = write_run_bundle(tmp_path, spec)
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+
+    def fake_post(body: dict) -> dict:
+        nonlocal active, max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        time.sleep(0.02)
+        with lock:
+            active -= 1
+        return {
+            "choices": [{"finish_reason": "stop", "message": {"role": "assistant", "reasoning": spec.serving.reasoning_config.reasoning_end_str, "content": "\\boxed{0}"}}],
+            "usage": {},
+        }
+
+    run_bundle(bundle, post_json=fake_post, start_serving=False, concurrency=3)
+
+    assert max_active == 3

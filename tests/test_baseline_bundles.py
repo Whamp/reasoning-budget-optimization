@@ -30,6 +30,8 @@ def test_default_baselines_cover_required_modes_and_roles() -> None:
     unlimited = next(s for s in specs if s.mode == "unlimited" and s.role == "opt")
     assert unlimited.serving.reasoning_parser is None
     assert unlimited.serving.reasoning_config is None
+    assert unlimited.serving.gpu_memory_utilization == 0.9
+    assert unlimited.serving.max_model_len == "65536"
 
     disabled = next(s for s in specs if s.mode == "disabled" and s.role == "opt")
     assert disabled.serving.reasoning_config is not None
@@ -50,6 +52,8 @@ def test_write_run_bundle_persists_manifest_rendered_config_and_ledger(tmp_path:
     assert "container_name: rbo-vllm" in compose
     assert '"30001:30000"' in compose
     assert "--reasoning-config" in compose
+    assert "--gpu-memory-utilization=0.9" in compose
+    assert "--max-model-len=65536" in compose
 
     request_config = json.loads((bundle_dir / "rendered" / "request_config.json").read_text())
     assert request_config["thinking_token_budget"] == 8192

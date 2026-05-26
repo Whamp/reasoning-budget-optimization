@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 import json
 from pathlib import Path
 from typing import Any, Callable
@@ -17,6 +18,7 @@ def run_bundle(
     post_json: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     start_serving: bool = False,
     tokenizer: Any | None = None,
+    concurrency: int = 8,
 ) -> dict[str, Any]:
     if start_serving:
         from .server_control import start_bundle_serving, wait_ready
@@ -34,20 +36,14 @@ def run_bundle(
     attempts_path.write_text("", encoding="utf-8")
     raw_path.write_text("", encoding="utf-8")
 
+    jobs = [(seed, item) for seed in manifest["seeds"] for item in items]
     rows: list[dict[str, Any]] = []
-    for seed in manifest["seeds"]:
-        for item in items:
-            body = {
-                "model": manifest["serving"]["served_model_name"],
-                "messages": [{"role": "user", "content": item["prompt"]}],
-                "seed": seed,
-                **request_config,
-            }
-            api = client.create(body)
-            response = api.response
-            raw_row = {"run_id": manifest["run_id"], "item_id": item["item_id"], "seed": seed, "response": response}
+    worker_count = max(1, min(concurrency, len(jobs)))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as pool:
+        futures = [pool.submit(_run_one, client, manifest, request_config, seed, item, tokenizer) for seed, item in jobs]
+        for future in concurrent.futures.as_completed(futures):
+            raw_row, row = future.result()
             _append_jsonl(raw_path, raw_row)
-            row = _attempt_from_response(manifest, item, seed, response, api.started_at, api.ended_at, tokenizer=tokenizer)
             _append_jsonl(attempts_path, row)
             rows.append(row)
 
@@ -57,6 +53,27 @@ def run_bundle(
     (reports / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (reports / "summary.md").write_text(_summary_markdown(summary), encoding="utf-8")
     return summary
+
+
+def _run_one(
+    client: OpenAIChatClient,
+    manifest: dict[str, Any],
+    request_config: dict[str, Any],
+    seed: int,
+    item: dict[str, Any],
+    tokenizer: Any | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    body = {
+        "model": manifest["serving"]["served_model_name"],
+        "messages": [{"role": "user", "content": item["prompt"]}],
+        "seed": seed,
+        **request_config,
+    }
+    api = client.create(body)
+    response = api.response
+    raw_row = {"run_id": manifest["run_id"], "item_id": item["item_id"], "seed": seed, "response": response}
+    row = _attempt_from_response(manifest, item, seed, response, api.started_at, api.ended_at, tokenizer=tokenizer)
+    return raw_row, row
 
 
 def summarize_attempts(manifest: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:

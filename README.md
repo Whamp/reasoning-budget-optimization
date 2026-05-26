@@ -34,6 +34,15 @@ The harness owns its own experiment serving compose and uses:
 
 It fails fast if the everyday `vllm` container is running. Stop that service manually when you are ready to dedicate the GPUs to experiments.
 
+Serving defaults for baseline throughput:
+
+- `--max-num-seqs=8`
+- request concurrency: `8`
+- `--gpu-memory-utilization=0.9`
+- `--max-model-len=65536`
+
+The `65536` model-length cap is based on the existing 32768-budget evidence for selected items `1,12,19,24,27`: max observed total tokens was `49984` on item `27`, so `65536` keeps headroom while avoiding the full 262k/auto KV-cache footprint.
+
 ## First baselines
 
 Required first baseline matrix:
@@ -74,7 +83,8 @@ Run one bundle, starting/recreating `rbo-vllm` from its rendered compose first. 
 uv run --extra tokenizer rbo run-bundle \
   runs/<run-id> \
   --start-serving \
-  --tokenizer Jackrong/Qwopus3.6-27B-v2
+  --tokenizer Jackrong/Qwopus3.6-27B-v2 \
+  --concurrency 8
 ```
 
 Summarize all bundles:
