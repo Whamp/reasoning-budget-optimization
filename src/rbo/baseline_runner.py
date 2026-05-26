@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Callable
@@ -45,9 +46,23 @@ def run_baseline_suite(
         return []
 
     summaries: list[dict[str, Any]] = []
+    current_serving_fingerprint: str | None = None
     for index, bundle in enumerate(bundles, start=1):
-        print(f"=== [{index}/{len(bundles)}] running {bundle.name} ===", flush=True)
-        summary = runner(bundle, start_serving=start_serving, tokenizer=tokenizer, concurrency=concurrency, progress_every=progress_every)
+        serving_fingerprint = _serving_fingerprint(bundle)
+        should_start = start_serving and serving_fingerprint != current_serving_fingerprint
+        action = "starting" if should_start else "reusing"
+        print(f"=== [{index}/{len(bundles)}] {action} serving for {bundle.name} ===", flush=True)
+        summary = runner(bundle, start_serving=should_start, tokenizer=tokenizer, concurrency=concurrency, progress_every=progress_every)
+        current_serving_fingerprint = serving_fingerprint
         summaries.append(summary)
         print(format_summary_table(summarize_runs(runs_root)), end="", flush=True)
     return summaries
+
+
+def _serving_fingerprint(bundle: Path) -> str:
+    rendered = bundle / "rendered"
+    h = hashlib.sha256()
+    for name in ("compose.yaml", "reasoning_config.json"):
+        h.update(name.encode("utf-8"))
+        h.update((rendered / name).read_bytes())
+    return h.hexdigest()

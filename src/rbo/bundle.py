@@ -33,7 +33,7 @@ def render_compose(serving: ServingConfig) -> str:
     command = [
         serving.model_id,
         f"--served-model-name={serving.served_model_name}",
-        "--generation-config=/srv/vllm",
+        "--generation-config=vllm",
         "--host=0.0.0.0",
         "--port=30000",
         f"--tensor-parallel-size={serving.tensor_parallel_size}",
@@ -70,7 +70,6 @@ def render_compose(serving: ServingConfig) -> str:
     volumes:
       - /home/will/.cache/huggingface:/root/.cache/huggingface
       - /home/will/.cache/vllm:/root/.cache/vllm
-      - ./generation_config.json:/srv/vllm/generation_config.json:ro
     environment:
       HF_TOKEN:
       HUGGING_FACE_HUB_TOKEN:

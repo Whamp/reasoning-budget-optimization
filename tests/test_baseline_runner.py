@@ -47,4 +47,4 @@ def test_run_baseline_suite_runs_not_run_bundles_with_one_loaded_tokenizer(tmp_p
     summaries = run_baseline_suite(tmp_path, tokenizer=tokenizer, concurrency=8, start_serving=True, runner=runner)
 
     assert len(summaries) == 2
-    assert [call[1:] for call in calls] == [(8, True, tokenizer, 1), (8, True, tokenizer, 1)]
+    assert [call[1:] for call in calls] == [(8, True, tokenizer, 1), (8, False, tokenizer, 1)]

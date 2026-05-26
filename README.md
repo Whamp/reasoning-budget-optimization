@@ -39,6 +39,7 @@ Serving defaults for baseline throughput:
 - `--max-num-seqs=8`
 - request concurrency: `8`
 - `--gpu-memory-utilization=0.9`
+- request sampling params are authoritative; serving uses `--generation-config=vllm` to avoid hidden/default generation-config overrides
 - budgeted serving cap: `--max-model-len=131072`, request `max_tokens=81920`
 - disabled/unlimited serving cap: `--max-model-len=262144`, request `max_tokens=81920`
 
@@ -84,7 +85,7 @@ Preview pending baselines:
 uv run rbo run-baselines --runs-root runs --dry-run
 ```
 
-Run all pending baselines. This starts/recreates `rbo-vllm` from each bundle's rendered compose, uses request concurrency 8 inside each bundle, skips completed bundles by default, prints per-attempt progress with per-item budget-hit counters, and prints a summary after each bundle:
+Run all pending baselines. This starts/recreates `rbo-vllm` when the serving config changes, reuses it for consecutive opt/guard bundles with the same serving config, uses request concurrency 8 inside each bundle, skips completed bundles by default, prints per-attempt progress with per-item budget-hit counters, and prints a summary after each bundle:
 
 ```bash
 uv run --extra tokenizer rbo run-baselines \

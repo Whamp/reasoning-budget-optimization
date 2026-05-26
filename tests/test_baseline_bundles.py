@@ -59,6 +59,8 @@ def test_write_run_bundle_persists_manifest_rendered_config_and_ledger(tmp_path:
     assert "container_name: rbo-vllm" in compose
     assert '"30001:30000"' in compose
     assert "--reasoning-config" in compose
+    assert "--generation-config=vllm" in compose
+    assert "/srv/vllm/generation_config.json" not in compose
     assert "--gpu-memory-utilization=0.9" in compose
     assert "--max-model-len=131072" in compose
 
